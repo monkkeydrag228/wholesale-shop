@@ -1,0 +1,97 @@
+# ============================================================
+#  docker-compose.yml — Wholesale Shop (Local Dev)
+#  BTEC Unit 6: Networking in the Cloud
+#
+#  Runs three services:
+#    db    — PostgreSQL database (private, no external port)
+#    app   — Node.js/Express backend + frontend
+#    nginx — Reverse proxy (mimics AWS ALB locally)
+#
+#  Usage:
+#    docker compose up --build        # start everything
+#    docker compose down -v           # stop and remove volumes
+# ============================================================
+
+version: '3.9'
+
+services:
+
+  # ── PostgreSQL Database ──────────────────────────────────
+  # Equivalent to: AWS RDS PostgreSQL in a PRIVATE subnet.
+  # Notice: no 'ports' mapping — the DB is NOT reachable from
+  # outside Docker's internal network, only from 'app'.
+  db:
+    image: postgres:16-alpine
+    container_name: wholesale_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       wholesale_db
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: supersecret123
+    volumes:
+      # Persist data across restarts
+      - db_data:/var/lib/postgresql/data
+      # Auto-run our schema on first startup
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    networks:
+      - private_net   # DB lives only on the internal network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Node.js Application ──────────────────────────────────
+  # Equivalent to: EC2 instances / ECS tasks in a PRIVATE subnet,
+  # behind a Load Balancer.
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wholesale_app
+    restart: unless-stopped
+    environment:
+      PORT:        3000
+      DB_HOST:     db          # Docker resolves service name to container IP
+      DB_PORT:     5432
+      DB_NAME:     wholesale_db
+      DB_USER:     postgres
+      DB_PASSWORD: supersecret123
+    depends_on:
+      db:
+        condition: service_healthy   # wait until PostgreSQL is ready
+    networks:
+      - private_net   # can reach db
+      - public_net    # reachable by nginx
+    # No direct port exposure — all traffic goes through nginx
+
+  # ── Nginx Reverse Proxy ───────────────────────────────────
+  # Equivalent to: AWS Application Load Balancer (ALB).
+  # Only this service is exposed to the host machine (port 80).
+  # In production you'd replace this with an actual ALB.
+  nginx:
+    image: nginx:alpine
+    container_name: wholesale_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"       # The ONLY entry point from outside
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - public_net    # faces the outside world
+
+# ── Networks ─────────────────────────────────────────────────
+# public_net  = simulates AWS Public Subnet  (nginx/ALB)
+# private_net = simulates AWS Private Subnet (app + db)
+networks:
+  public_net:
+    driver: bridge
+  private_net:
+    driver: bridge
+
+# ── Volumes ──────────────────────────────────────────────────
+volumes:
+  db_data:
+    driver: local
