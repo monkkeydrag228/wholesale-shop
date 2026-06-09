@@ -1,1 +1,88 @@
-<meta http-equiv="refresh" content="0;url=/admin/login.html"/>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DRAPE — Wholesale Clothing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">DRAPE</div>
+      <nav class="nav">
+        <button class="nav-btn active" data-cat="">All</button>
+        <button class="nav-btn" data-cat="T-Shirts">T-Shirts</button>
+        <button class="nav-btn" data-cat="Jackets">Jackets</button>
+        <button class="nav-btn" data-cat="Trousers">Trousers</button>
+        <button class="nav-btn" data-cat="Dresses">Dresses</button>
+        <button class="nav-btn" data-cat="Knitwear">Knitwear</button>
+        <button class="nav-btn" data-cat="Sportswear">Sportswear</button>
+      </nav>
+      <div class="cart-icon" id="cartBtn">
+        🛒 <span class="cart-count" id="cartCount">0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Hero ────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-text">
+      <span class="hero-sub">Wholesale Collection 2025</span>
+      <h1>Dress the<br /><em>World</em></h1>
+      <p>Premium wholesale clothing for retailers, boutiques and brands.</p>
+      <button class="cta-btn" onclick="document.getElementById('catalogue').scrollIntoView({behavior:'smooth'})">
+        Browse Catalogue
+      </button>
+    </div>
+    <div class="hero-accent"></div>
+  </section>
+
+  <!-- ── Catalogue ───────────────────────────────────────── -->
+  <main id="catalogue">
+    <div class="catalogue-header">
+      <h2>Catalogue</h2>
+      <span id="productCount" class="count-badge">Loading…</span>
+    </div>
+
+    <!-- Loading / Error states -->
+    <div id="loadingState" class="state-msg">Loading products…</div>
+    <div id="errorState"   class="state-msg error" style="display:none">
+      Could not load products. Is the server running?
+    </div>
+
+    <!-- Product grid -->
+    <div class="product-grid" id="productGrid"></div>
+  </main>
+
+  <!-- ── Cart Drawer ──────────────────────────────────────── -->
+  <aside class="cart-drawer" id="cartDrawer">
+    <div class="cart-header">
+      <h3>Your Order</h3>
+      <button class="close-btn" id="closeCart">✕</button>
+    </div>
+    <ul class="cart-items" id="cartItems"></ul>
+    <div class="cart-footer">
+      <div class="cart-total">Total: <strong id="cartTotal">£0.00</strong></div>
+      <div class="cart-form">
+        <input type="text" id="customerName"  placeholder="Your name *"     class="cart-input" />
+        <input type="tel"  id="customerPhone" placeholder="Phone number *"  class="cart-input" />
+      </div>
+      <button class="cta-btn full" id="checkoutBtn">Place Wholesale Order</button>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <!-- ── Footer ──────────────────────────────────────────── -->
+  <footer class="site-footer">
+    <p>© 2025 DRAPE Wholesale. BTEC Unit 6 — Cloud Architecture Demo.</p>
+    <a href="/admin">Admin Panel →</a>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

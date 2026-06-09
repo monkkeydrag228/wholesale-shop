@@ -1,53 +1,59 @@
+// ============================================================
+//  server.js  —  Wholesale Clothing Shop API
+//  BTEC Unit 6: Networking in the Cloud
+// ============================================================
 'use strict';
-const express  = require('express');
-const cors     = require('cors');
-const path     = require('path');
+
+const express = require('express');
+const cors    = require('cors');
+const path    = require('path');
 require('dotenv').config();
 
-const db        = require('./db');
-const auth      = require('./routes/auth');
-const products  = require('./routes/products');
-const orders    = require('./routes/orders');
-const reports   = require('./routes/reports');
-const customers = require('./routes/customers');
-const dashboard = require('./routes/dashboard');
+const db       = require('./db');          // PostgreSQL pool
+const products = require('./routes/products');
+const orders   = require('./routes/orders');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json());
+// ── Middleware ────────────────────────────────────────────────
+app.use(cors());                              // allow cross-origin requests
+app.use(express.json());                      // parse JSON bodies
+app.use(express.urlencoded({ extended: true }));
 
-// Static
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, '..', 'frontend', 'public')));
 app.use('/admin', express.static(path.join(__dirname, '..', 'frontend', 'admin')));
-app.get('/', (req, res) => res.redirect('/admin/login.html'));
 
-// Health
+// ── Health check (used by Load Balancer target group) ─────────
 app.get('/health', async (req, res) => {
-  try { await db.query('SELECT 1'); res.json({ status: 'ok' }); }
-  catch { res.status(503).json({ status: 'error' }); }
+  try {
+    await db.query('SELECT 1');              // verify DB connectivity
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(503).json({ status: 'error', message: 'Database unreachable' });
+  }
 });
 
-// API
-app.use('/api/auth',      auth);
-app.use('/api/products',  products);
-app.use('/api/orders',    orders);
-app.use('/api/reports',   reports);
-app.use('/api/customers', customers);
-app.use('/api/dashboard', dashboard);
+// ── API Routes ────────────────────────────────────────────────
+app.use('/api/products', products);
+app.use('/api/orders',   orders);
 
-// 404
-app.use((req, res) => {
-  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
-  res.sendFile(path.join(__dirname, '..', 'frontend', 'admin', 'login.html'));
+// ── SPA fallback: serve index.html for any unknown GET route ──
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'frontend', 'public', 'index.html'));
 });
 
+// ── Global error handler ──────────────────────────────────────
 app.use((err, req, res, _next) => {
-  console.error(err.stack);
+  console.error('[ERROR]', err.stack);
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
+// ── Start server ──────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`✅  DRAPE CRM running on port ${PORT}`);
-  console.log(`   http://localhost:${PORT}/admin/login.html`);
+  console.log(`✅  Server running on port ${PORT}`);
+  console.log(`   Shop:  http://localhost:${PORT}`);
+  console.log(`   Admin: http://localhost:${PORT}/admin`);
+  console.log(`   API:   http://localhost:${PORT}/api/products`);
 });

@@ -1,78 +1,106 @@
+// routes/orders.js — create and list orders
 'use strict';
+
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
 
-// GET all orders with items count
+// ── GET /api/orders  — list all orders (admin use) ───────────
 router.get('/', async (req, res) => {
   try {
     const { rows } = await db.query(`
       SELECT o.*,
-        COUNT(oi.id) AS items_count
-      FROM orders o
-      LEFT JOIN order_items oi ON oi.order_id = o.id
-      GROUP BY o.id
-      ORDER BY o.created_at DESC
+             COALESCE(o.customer_name, u.name, 'Guest') AS customer_name,
+             COALESCE(o.customer_phone, '')              AS customer_phone,
+             u.email AS customer_email
+        FROM orders o
+   LEFT JOIN users u ON u.id = o.user_id
+    ORDER BY o.created_at DESC
     `);
     res.json(rows);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+  } catch (err) {
+    res.status(500).json({ error: 'Could not fetch orders' });
+  }
 });
 
-// GET single order with items
-router.get('/:id', async (req, res) => {
-  try {
-    const { rows } = await db.query('SELECT * FROM orders WHERE id=$1', [req.params.id]);
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    const { rows: items } = await db.query(
-      `SELECT oi.*, p.name AS product_name FROM order_items oi
-       LEFT JOIN products p ON p.id = oi.product_id WHERE oi.order_id=$1`, [req.params.id]);
-    res.json({ ...rows[0], items });
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
-});
-
-// POST create order
+// ── POST /api/orders  — place new order ──────────────────────
 router.post('/', async (req, res) => {
-  const { customer_id, customer_name, customer_phone, items } = req.body;
-  if (!items || !items.length) return res.status(400).json({ error: 'Items required' });
+  const { user_id, items, shipping_addr, customer_name, customer_phone } = req.body;
+  // items: [{ product_id, quantity }, ...]
+
+  if (!items || !items.length) {
+    return res.status(400).json({ error: 'Order must contain at least one item' });
+  }
+
+  const client = await db.connect();   // use transaction
   try {
-    const total = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
-    const { rows } = await db.query(
-      `INSERT INTO orders(customer_id,customer_name,customer_phone,total_amount)
-       VALUES($1,$2,$3,$4) RETURNING *`,
-      [customer_id||null, customer_name||null, customer_phone||null, total]
-    );
-    const orderId = rows[0].id;
+    await client.query('BEGIN');
+
+    // 1. Calculate total & verify stock
+    let total = 0;
+    const lineItems = [];
     for (const item of items) {
-      await db.query(
-        'INSERT INTO order_items(order_id,product_id,quantity,unit_price) VALUES($1,$2,$3,$4)',
-        [orderId, item.product_id, item.quantity, item.unit_price]
+      const { rows } = await client.query(
+        'SELECT id, price, stock FROM products WHERE id = $1 FOR UPDATE',
+        [item.product_id]
+      );
+      if (!rows.length) throw new Error(`Product ${item.product_id} not found`);
+      const product = rows[0];
+      if (product.stock < item.quantity) {
+        throw new Error(`Insufficient stock for product ${item.product_id}`);
+      }
+      total += product.price * item.quantity;
+      lineItems.push({ ...item, unit_price: product.price });
+    }
+
+    // 2. Create order
+    const { rows: [order] } = await client.query(
+      `INSERT INTO orders (user_id, total_amount, shipping_addr, customer_name, customer_phone)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [user_id || null, total.toFixed(2), shipping_addr || '', customer_name || '', customer_phone || '']
+    );
+
+    // 3. Insert order items & decrement stock
+    for (const li of lineItems) {
+      await client.query(
+        `INSERT INTO order_items (order_id, product_id, quantity, unit_price)
+         VALUES ($1, $2, $3, $4)`,
+        [order.id, li.product_id, li.quantity, li.unit_price]
+      );
+      await client.query(
+        'UPDATE products SET stock = stock - $1 WHERE id = $2',
+        [li.quantity, li.product_id]
       );
     }
-    res.status(201).json(rows[0]);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+
+    await client.query('COMMIT');
+    res.status(201).json({ order, items: lineItems });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(400).json({ error: err.message });
+  } finally {
+    client.release();
+  }
 });
 
-// PATCH update status
+// ── PATCH /api/orders/:id/status  — update order status ──────
 router.patch('/:id/status', async (req, res) => {
   const { status } = req.body;
-  const valid = ['pending','processing','shipped','delivered','cancelled'];
-  if (!valid.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+  const allowed = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+  if (!allowed.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
   try {
     const { rows } = await db.query(
-      'UPDATE orders SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING *',
+      `UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
       [status, req.params.id]
     );
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    if (!rows.length) return res.status(404).json({ error: 'Order not found' });
     res.json(rows[0]);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
-});
-
-// DELETE order
-router.delete('/:id', async (req, res) => {
-  try {
-    await db.query('DELETE FROM orders WHERE id=$1', [req.params.id]);
-    res.json({ success: true });
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+  } catch (err) {
+    res.status(500).json({ error: 'Could not update status' });
+  }
 });
 
 module.exports = router;

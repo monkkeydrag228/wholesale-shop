@@ -1,1 +1,125 @@
-<meta http-equiv="refresh" content="0;url=/admin/dashboard.html"/>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DRAPE — Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+
+  <div class="layout">
+
+    <!-- ── Sidebar ──────────────────────────────────────── -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">DRAPE</div>
+      <nav class="sidebar-nav">
+        <a href="/admin" class="nav-link active">📦 Products</a>
+        <a href="/admin/orders.html" class="nav-link">🧾 Orders</a>
+        <a href="/" class="nav-link">🏪 View Shop</a>
+      </nav>
+      <div class="sidebar-foot">Admin Panel v1.0</div>
+    </aside>
+
+    <!-- ── Main Content ──────────────────────────────────── -->
+    <main class="main">
+
+      <div class="page-header">
+        <div>
+          <h1>Product Management</h1>
+          <p class="subtitle">Add, edit and remove wholesale catalogue items</p>
+        </div>
+        <button class="btn-primary" id="showFormBtn">+ Add Product</button>
+      </div>
+
+      <!-- Toast notification -->
+      <div class="toast" id="toast"></div>
+
+      <!-- ── Add / Edit Form ──────────────────────────────── -->
+      <section class="form-card" id="formSection" style="display:none">
+        <h2 id="formTitle">Add New Product</h2>
+        <form id="productForm" class="product-form">
+          <input type="hidden" id="editId" />
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="pName">Product Name *</label>
+              <input type="text" id="pName" required placeholder="e.g. Slim Fit Chinos" />
+            </div>
+            <div class="form-group">
+              <label for="pCategory">Category *</label>
+              <select id="pCategory" required>
+                <option value="">Select…</option>
+                <option>T-Shirts</option>
+                <option>Trousers</option>
+                <option>Jackets</option>
+                <option>Dresses</option>
+                <option>Knitwear</option>
+                <option>Sportswear</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="pDesc">Description</label>
+            <textarea id="pDesc" rows="2" placeholder="Short product description…"></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="pPrice">Price (£) *</label>
+              <input type="number" id="pPrice" required min="0" step="0.01" placeholder="0.00" />
+            </div>
+            <div class="form-group">
+              <label for="pStock">Stock Qty *</label>
+              <input type="number" id="pStock" required min="0" placeholder="0" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="pImage">Image URL</label>
+            <input type="url" id="pImage" placeholder="https://…" />
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-primary" id="submitBtn">Add Product</button>
+            <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ── Products Table ────────────────────────────────── -->
+      <section class="table-card">
+        <div class="table-toolbar">
+          <input type="text" id="searchInput" placeholder="Search products…" class="search-input" />
+          <span id="tableCount" class="count-badge">Loading…</span>
+        </div>
+
+        <div id="tableLoading" class="loading-row">Loading products…</div>
+        <div id="tableError"   class="error-row"   style="display:none">Failed to load products.</div>
+
+        <div class="table-wrap">
+          <table id="productsTable" style="display:none">
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
