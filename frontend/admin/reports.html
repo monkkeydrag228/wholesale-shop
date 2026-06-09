@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DRAPE CRM — Hisobotlar</title>
+  <link rel="stylesheet" href="main.css"/>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">D</div>
+      <div class="brand-text">DRAPE<span>Wholesale CRM</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">ASOSIY</div>
+      <a href="dashboard.html" class="nav-item"><span class="ni">📊</span>Dashboard</a>
+      <a href="orders.html"    class="nav-item"><span class="ni">📋</span>Buyurtmalar</a>
+      <a href="customers.html" class="nav-item"><span class="ni">👥</span>Mijozlar</a>
+      <a href="products.html"  class="nav-item"><span class="ni">📦</span>Mahsulotlar</a>
+      <a href="reports.html"   class="nav-item active"><span class="ni">📈</span>Hisobotlar</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="avatar" id="avatarLetter">A</div>
+      <div><div class="avatar-name" id="avatarName">Admin</div><div class="avatar-role">Administrator</div></div>
+      <button onclick="logout()" style="margin-left:auto;background:none;border:none;color:#64748B;cursor:pointer;font-size:1rem">→</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div><div class="page-title">Hisobotlar</div><div class="page-sub">Sotuv tahlili va statistikasi</div></div>
+      <div class="topbar-right"><button class="btn btn-ghost btn-sm" onclick="load()">↻ Yangilash</button></div>
+    </div>
+    <div class="content">
+
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-icon orange">💰</div><div><div class="kpi-label">Umumiy daromad</div><div class="kpi-value" id="rRevenue">—</div><div class="kpi-sub" id="rOrders">—</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon green">📊</div><div><div class="kpi-label">O'rtacha buyurtma</div><div class="kpi-value" id="rAvg">—</div><div class="kpi-sub">so'mlik</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon blue">👥</div><div><div class="kpi-label">Faol mijozlar</div><div class="kpi-value" id="rCustomers">—</div><div class="kpi-sub">ta kompaniya</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon purple">⏳</div><div><div class="kpi-label">Kutilayotgan</div><div class="kpi-value" id="rPending">—</div><div class="kpi-sub" id="rDelivered">— yetkazilgan</div></div></div>
+      </div>
+
+      <div class="row-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Oylik daromad</div><div class="card-sub">So'nggi 6 oy</div></div>
+          <div id="barEl"><p class="text-muted" style="font-size:.8rem">Yuklanmoqda...</p></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Buyurtmalar holati</div></div>
+          <div id="donutEl" class="donut-wrap"><p class="text-muted" style="font-size:.8rem">Yuklanmoqda...</p></div>
+        </div>
+      </div>
+
+      <div class="row-2b">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Top mahsulotlar</div><div class="card-sub">Daromad bo'yicha</div></div>
+          <div id="topProdEl"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Kategoriyalar bo'yicha</div></div>
+          <div id="catEl"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const token=localStorage.getItem('drape_token');
+if(!token) window.location.href='/admin/login.html';
+const name=localStorage.getItem('drape_name')||'Admin';
+document.getElementById('avatarName').textContent=name;
+document.getElementById('avatarLetter').textContent=name[0].toUpperCase();
+function logout(){localStorage.clear();window.location.href='/admin/login.html';}
+
+const SC={pending:'#F59E0B',processing:'#3B82F6',shipped:'#8B5CF6',delivered:'#10B981',cancelled:'#EF4444'};
+function fmt(v){return '£'+parseFloat(v||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+
+async function load(){
+  try{
+    const r=await fetch('/api/reports/summary',{headers:{'Authorization':'Bearer '+token}});
+    if(r.status===401){window.location.href='/admin/login.html';return;}
+    const d=await r.json();
+    const t=d.totals;
+    document.getElementById('rRevenue').textContent=fmt(t.total_revenue);
+    document.getElementById('rOrders').textContent=t.total_orders+' buyurtma';
+    document.getElementById('rAvg').textContent=fmt(t.avg_order_value);
+    document.getElementById('rCustomers').textContent=t.total_customers;
+    document.getElementById('rPending').textContent=t.pending_orders;
+    document.getElementById('rDelivered').textContent=t.delivered_orders+' yetkazilgan';
+
+    // Bar
+    const months=d.monthlyRevenue;
+    if(months.length){
+      const max=Math.max(...months.map(m=>parseFloat(m.revenue)));
+      const cols=months.map(m=>{
+        const h=max>0?Math.max(parseFloat(m.revenue)/max*100,2):2;
+        return `<div class="bar-col"><div class="bar-fill" style="height:${h}%"><div class="bar-tip">${m.month}: ${fmt(m.revenue)}</div></div><div class="bar-lbl">${m.month.split(' ')[0]}</div></div>`;
+      }).join('');
+      document.getElementById('barEl').innerHTML=`<div class="bar-chart">${cols}</div>`;
+    }
+
+    // Donut
+    const statuses=d.statusBreakdown;
+    if(statuses.length){
+      const total=statuses.reduce((s,r)=>s+parseInt(r.count),0);
+      const R=48,CX=60,CY=60,SW=14,C=2*Math.PI*R;
+      let paths='',off=0;
+      statuses.forEach(s=>{
+        const pct=parseInt(s.count)/total,dash=pct*C,col=SC[s.status]||'#888';
+        paths+=`<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${col}" stroke-width="${SW}" stroke-dasharray="${dash} ${C-dash}" stroke-dashoffset="${-off*C}" transform="rotate(-90 ${CX} ${CY})"/>`;
+        off+=pct;
+      });
+      const legend=statuses.map(s=>{
+        const col=SC[s.status]||'#888',pct=Math.round(parseInt(s.count)/total*100);
+        return `<div class="legend-row"><span class="legend-l"><span class="legend-dot" style="background:${col}"></span>${s.status}</span><span class="legend-r">${s.count} (${pct}%)</span></div>`;
+      }).join('');
+      document.getElementById('donutEl').innerHTML=`
+        <svg width="120" height="120" viewBox="0 0 120 120"><circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="#E2E8F0" stroke-width="${SW}"/>${paths}
+          <text x="${CX}" y="${CY+1}" text-anchor="middle" fill="#0F172A" font-size="16" font-family="Inter" font-weight="700">${total}</text>
+          <text x="${CX}" y="${CY+14}" text-anchor="middle" fill="#64748B" font-size="8" font-family="Inter">buyurtma</text>
+        </svg>
+        <div class="legend">${legend}</div>`;
+    }
+
+    // Top products
+    const prods=d.topProducts;
+    if(prods.length){
+      const maxR=Math.max(...prods.map(p=>parseFloat(p.revenue)));
+      document.getElementById('topProdEl').innerHTML=prods.map((p,i)=>`
+        <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid #F1F5F9">
+          <span style="width:20px;text-align:center;font-weight:700;color:${i===0?'#F97316':'#94A3B8'}">${i+1}</span>
+          <div style="flex:1">
+            <div style="font-size:.82rem;font-weight:500">${p.name}</div>
+            <div style="height:3px;background:#F1F5F9;border-radius:2px;margin-top:3px">
+              <div style="height:100%;background:#F97316;border-radius:2px;width:${(parseFloat(p.revenue)/maxR*100).toFixed(0)}%"></div>
+            </div>
+          </div>
+          <span style="font-size:.82rem;font-weight:600;color:#F97316">${fmt(p.revenue)}</span>
+        </div>`).join('');
+    }
+
+    // Categories
+    const cats=d.categoryRevenue;
+    if(cats.length){
+      const maxC=Math.max(...cats.map(c=>parseFloat(c.revenue)));
+      const CC=['#F97316','#10B981','#3B82F6','#8B5CF6','#F59E0B','#EF4444'];
+      document.getElementById('catEl').innerHTML=cats.map((c,i)=>`
+        <div style="margin-bottom:.8rem">
+          <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.3rem">
+            <span style="font-weight:500">${c.category}</span>
+            <span style="color:#64748B">${fmt(c.revenue)} · ${c.units_sold} ta</span>
+          </div>
+          <div style="height:5px;background:#F1F5F9;border-radius:3px">
+            <div style="height:100%;background:${CC[i%CC.length]};border-radius:3px;width:${(parseFloat(c.revenue)/maxC*100).toFixed(0)}%"></div>
+          </div>
+        </div>`).join('');
+    }
+  }catch(e){console.error(e);}
+}
+load();
+</script>
+</body>
+</html>

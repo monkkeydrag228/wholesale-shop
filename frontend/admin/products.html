@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DRAPE CRM — Mahsulotlar</title>
+  <link rel="stylesheet" href="main.css"/>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">D</div>
+      <div class="brand-text">DRAPE<span>Wholesale CRM</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">ASOSIY</div>
+      <a href="dashboard.html" class="nav-item"><span class="ni">📊</span>Dashboard</a>
+      <a href="orders.html"    class="nav-item"><span class="ni">📋</span>Buyurtmalar</a>
+      <a href="customers.html" class="nav-item"><span class="ni">👥</span>Mijozlar</a>
+      <a href="products.html"  class="nav-item active"><span class="ni">📦</span>Mahsulotlar</a>
+      <a href="reports.html"   class="nav-item"><span class="ni">📈</span>Hisobotlar</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="avatar" id="avatarLetter">A</div>
+      <div><div class="avatar-name" id="avatarName">Admin</div><div class="avatar-role">Administrator</div></div>
+      <button onclick="logout()" style="margin-left:auto;background:none;border:none;color:#64748B;cursor:pointer;font-size:1rem">→</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div><div class="page-title">Mahsulotlar katalogi</div><div class="page-sub" id="countSub">Yuklanmoqda...</div></div>
+      <div class="topbar-right">
+        <div class="search-bar"><span>🔍</span><input id="searchInput" placeholder="Nom yoki kategoriya..."/></div>
+        <select id="filterCat" class="form-select" style="max-width:160px">
+          <option value="">Barcha kategoriyalar</option>
+          <option value="T-Shirts">T-Shirts</option>
+          <option value="Trousers">Trousers</option>
+          <option value="Jackets">Jackets</option>
+          <option value="Dresses">Dresses</option>
+          <option value="Knitwear">Knitwear</option>
+          <option value="Sportswear">Sportswear</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModal()">+ Yangi mahsulot</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="product-grid" id="productGrid"><div class="empty-state">Yuklanmoqda...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Yangi mahsulot</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Mahsulot nomi *</label><input class="form-input" id="fName" placeholder="Classic White Tee"/></div>
+      <div class="form-group"><label class="form-label">Kategoriya *</label>
+        <select class="form-select" id="fCat">
+          <option>T-Shirts</option><option>Trousers</option><option>Jackets</option>
+          <option>Dresses</option><option>Knitwear</option><option>Sportswear</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Narx (£) *</label><input class="form-input" id="fPrice" type="number" step="0.01" min="0" placeholder="29.99"/></div>
+      <div class="form-group"><label class="form-label">Ombordagi miqdor *</label><input class="form-input" id="fStock" type="number" min="0" placeholder="100"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">Tavsif</label><textarea class="form-textarea" id="fDesc" placeholder="Mahsulot haqida..."></textarea></div>
+    <div class="form-group"><label class="form-label">Rasm URL</label><input class="form-input" id="fImg" placeholder="https://images.unsplash.com/..."/></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Bekor qilish</button>
+      <button class="btn btn-primary" onclick="save()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const token=localStorage.getItem('drape_token');
+if(!token) window.location.href='/admin/login.html';
+const name=localStorage.getItem('drape_name')||'Admin';
+document.getElementById('avatarName').textContent=name;
+document.getElementById('avatarLetter').textContent=name[0].toUpperCase();
+function logout(){localStorage.clear();window.location.href='/admin/login.html';}
+
+let all=[], editId=null;
+
+async function load(){
+  const r=await fetch('/api/products',{headers:{'Authorization':'Bearer '+token}});
+  all=await r.json();
+  render();
+}
+
+function render(){
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  const cat=document.getElementById('filterCat').value;
+  let list=all.filter(p=>{
+    if(q&&!p.name.toLowerCase().includes(q)&&!p.category.toLowerCase().includes(q)) return false;
+    if(cat&&p.category!==cat) return false;
+    return true;
+  });
+  document.getElementById('countSub').textContent=list.length+' ta mahsulot';
+  if(!list.length){document.getElementById('productGrid').innerHTML='<div class="empty-state">Mahsulot topilmadi</div>';return;}
+  document.getElementById('productGrid').innerHTML=list.map(p=>`
+    <div class="product-card">
+      ${p.image_url?`<img class="product-img" src="${p.image_url}" alt="${p.name}" onerror="this.style.display='none'">`:'<div class="product-img" style="display:flex;align-items:center;justify-content:center;font-size:2rem">👕</div>'}
+      ${p.stock<=20?`<div style="position:relative;top:-180px;left:8px;height:0"><span class="badge cancelled" style="font-size:.6rem">Kam qoldi</span></div>`:''}
+      <div class="product-body">
+        <div class="product-name">${p.name}</div>
+        <div class="product-cat">${p.category}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="product-price">£${parseFloat(p.price).toFixed(2)}</div>
+          <div class="product-stock ${p.stock<=20?'stock-low':''}">Stok: ${p.stock}</div>
+        </div>
+        <div class="product-actions">
+          <button class="btn btn-ghost btn-sm" style="flex:1" onclick="openEdit(${p.id})">✏️ Tahrirlash</button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="del(${p.id})">🗑️</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function openModal(){editId=null;document.getElementById('modalTitle').textContent='Yangi mahsulot';['fName','fPrice','fStock','fDesc','fImg'].forEach(id=>document.getElementById(id).value='');document.getElementById('modal').classList.add('open');}
+function openEdit(id){
+  const p=all.find(x=>x.id===id);if(!p)return;
+  editId=id;document.getElementById('modalTitle').textContent='Mahsulotni tahrirlash';
+  document.getElementById('fName').value=p.name||'';
+  document.getElementById('fCat').value=p.category||'T-Shirts';
+  document.getElementById('fPrice').value=p.price||'';
+  document.getElementById('fStock').value=p.stock||'';
+  document.getElementById('fDesc').value=p.description||'';
+  document.getElementById('fImg').value=p.image_url||'';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+
+async function save(){
+  const body={name:document.getElementById('fName').value.trim(),category:document.getElementById('fCat').value,price:parseFloat(document.getElementById('fPrice').value),stock:parseInt(document.getElementById('fStock').value),description:document.getElementById('fDesc').value.trim(),image_url:document.getElementById('fImg').value.trim()};
+  if(!body.name||!body.price){alert('Nom va narxni kiriting');return;}
+  const url=editId?`/api/products/${editId}`:'/api/products';
+  const method=editId?'PUT':'POST';
+  const r=await fetch(url,{method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+  if(r.ok){closeModal();load();}
+}
+
+async function del(id){
+  if(!confirm('Mahsulotni o\'chirishni tasdiqlaysizmi?')) return;
+  await fetch(`/api/products/${id}`,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+  load();
+}
+
+document.getElementById('searchInput').addEventListener('input',render);
+document.getElementById('filterCat').addEventListener('change',render);
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
+load();
+</script>
+</body>
+</html>

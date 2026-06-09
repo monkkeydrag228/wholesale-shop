@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DRAPE CRM — Dashboard</title>
+  <link rel="stylesheet" href="main.css"/>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">D</div>
+      <div class="brand-text">DRAPE<span>Wholesale CRM</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">ASOSIY</div>
+      <a href="dashboard.html" class="nav-item active"><span class="ni">📊</span>Dashboard</a>
+      <a href="orders.html"    class="nav-item"><span class="ni">📋</span>Buyurtmalar</a>
+      <a href="customers.html" class="nav-item"><span class="ni">👥</span>Mijozlar</a>
+      <a href="products.html"  class="nav-item"><span class="ni">📦</span>Mahsulotlar</a>
+      <a href="reports.html"   class="nav-item"><span class="ni">📈</span>Hisobotlar</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="avatar" id="avatarLetter">A</div>
+      <div><div class="avatar-name" id="avatarName">Admin</div><div class="avatar-role">Administrator</div></div>
+      <button onclick="logout()" style="margin-left:auto;background:none;border:none;color:#64748B;cursor:pointer;font-size:1rem">→</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div><div class="page-title">Dashboard</div><div class="page-sub">Umumiy ko'rinish</div></div>
+      <div class="topbar-right">
+        <button class="btn btn-ghost btn-sm" onclick="load()">↻ Yangilash</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- KPI -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon orange">💰</div>
+          <div><div class="kpi-label">Umumiy daromad</div><div class="kpi-value" id="kRevenue">—</div><div class="kpi-sub" id="kOrders">— buyurtma</div></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon green">👥</div>
+          <div><div class="kpi-label">Faol mijozlar</div><div class="kpi-value" id="kCustomers">—</div><div class="kpi-sub" id="kProducts">— mahsulot</div></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon blue">📋</div>
+          <div><div class="kpi-label">Kutilayotgan</div><div class="kpi-value" id="kPending">—</div><div class="kpi-sub" id="kDelivered">— yetkazilgan</div></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon purple">📊</div>
+          <div><div class="kpi-label">O'rtacha buyurtma</div><div class="kpi-value" id="kAvg">—</div><div class="kpi-sub">so'mlik</div></div>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="row-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Oylik daromad</div>
+            <div class="card-sub">So'nggi 6 oy</div>
+          </div>
+          <div id="barChartEl"><p class="text-muted" style="font-size:.8rem">Yuklanmoqda...</p></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Buyurtmalar holati</div></div>
+          <div id="donutEl" class="donut-wrap"><p class="text-muted" style="font-size:.8rem">Yuklanmoqda...</p></div>
+        </div>
+      </div>
+
+      <!-- Bottom row -->
+      <div class="row-2b">
+        <!-- Top customers -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Top mijozlar</div><div class="card-sub">Eng ko'p xarid</div></div>
+          <div id="topCustEl"><p class="text-muted" style="font-size:.8rem">Yuklanmoqda...</p></div>
+        </div>
+        <!-- Activity -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">Faollik tarixi</div></div>
+          <div class="activity-list" id="activityEl"></div>
+        </div>
+      </div>
+
+      <!-- Recent orders -->
+      <div class="table-card">
+        <div class="table-header">
+          <div class="card-title">So'nggi buyurtmalar</div>
+          <a href="orders.html" class="btn btn-ghost btn-sm">Barchasini ko'rish →</a>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Mijoz</th><th>Summa</th><th>Holat</th><th>Sana</th></tr></thead>
+            <tbody id="recentOrdersEl"><tr><td colspan="5" class="empty-state">Yuklanmoqda...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const token=localStorage.getItem('drape_token');
+if(!token) window.location.href='/admin/login.html';
+const name=localStorage.getItem('drape_name')||'Admin';
+document.getElementById('avatarName').textContent=name;
+document.getElementById('avatarLetter').textContent=name[0].toUpperCase();
+function logout(){localStorage.clear();window.location.href='/admin/login.html';}
+
+const STATUS_COLORS={pending:'#F59E0B',processing:'#3B82F6',shipped:'#8B5CF6',delivered:'#10B981',cancelled:'#EF4444'};
+
+function fmt(v){return '£'+parseFloat(v||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+function timeAgo(d){
+  const s=Math.floor((new Date()-new Date(d))/1000);
+  if(s<60) return s+'s oldin';
+  if(s<3600) return Math.floor(s/60)+'m oldin';
+  if(s<86400) return Math.floor(s/3600)+'soat oldin';
+  return Math.floor(s/86400)+' kun oldin';
+}
+
+async function load(){
+  try{
+    const r=await fetch('/api/dashboard/summary',{headers:{'Authorization':'Bearer '+token}});
+    if(r.status===401){window.location.href='/admin/login.html';return;}
+    const d=await r.json();
+
+    // KPI
+    const t=d.totals;
+    document.getElementById('kRevenue').textContent=fmt(t.total_revenue);
+    document.getElementById('kOrders').textContent=t.total_orders+' buyurtma';
+    document.getElementById('kCustomers').textContent=t.customers;
+    document.getElementById('kProducts').textContent=t.products+' mahsulot';
+    document.getElementById('kPending').textContent=t.pending_orders;
+    document.getElementById('kDelivered').textContent=t.delivered_orders+' yetkazilgan';
+    document.getElementById('kAvg').textContent=fmt(t.avg_order);
+
+    // Bar chart
+    const months=d.monthly;
+    if(months.length){
+      const max=Math.max(...months.map(m=>parseFloat(m.revenue)));
+      const cols=months.map(m=>{
+        const h=max>0?Math.max(parseFloat(m.revenue)/max*100,2):2;
+        return `<div class="bar-col">
+          <div class="bar-fill" style="height:${h}%">
+            <div class="bar-tip">${m.month}: ${fmt(m.revenue)}</div>
+          </div>
+          <div class="bar-lbl">${m.month}</div>
+        </div>`;
+      }).join('');
+      document.getElementById('barChartEl').innerHTML=`<div class="bar-chart">${cols}</div>`;
+    }
+
+    // Donut
+    const statuses=d.statusBreakdown;
+    if(statuses.length){
+      const total=statuses.reduce((s,r)=>s+parseInt(r.count),0);
+      const R=48,CX=60,CY=60,SW=14,C=2*Math.PI*R;
+      let paths='',off=0;
+      statuses.forEach(s=>{
+        const pct=parseInt(s.count)/total,dash=pct*C,col=STATUS_COLORS[s.status]||'#888';
+        paths+=`<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${col}" stroke-width="${SW}" stroke-dasharray="${dash} ${C-dash}" stroke-dashoffset="${-off*C}" transform="rotate(-90 ${CX} ${CY})"/>`;
+        off+=pct;
+      });
+      const legend=statuses.map(s=>{
+        const col=STATUS_COLORS[s.status]||'#888',pct=Math.round(parseInt(s.count)/total*100);
+        return `<div class="legend-row"><span class="legend-l"><span class="legend-dot" style="background:${col}"></span>${s.status}</span><span class="legend-r">${s.count} (${pct}%)</span></div>`;
+      }).join('');
+      document.getElementById('donutEl').innerHTML=`
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="#E2E8F0" stroke-width="${SW}"/>
+          ${paths}
+          <text x="${CX}" y="${CY+1}" text-anchor="middle" fill="#0F172A" font-size="16" font-family="Inter" font-weight="700">${total}</text>
+          <text x="${CX}" y="${CY+14}" text-anchor="middle" fill="#64748B" font-size="8" font-family="Inter">buyurtma</text>
+        </svg>
+        <div class="legend">${legend}</div>`;
+    }
+
+    // Top customers
+    const tc=d.topCustomers;
+    if(tc.length){
+      const maxS=Math.max(...tc.map(c=>parseFloat(c.spent)));
+      const rows=tc.map((c,i)=>`
+        <div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid #F1F5F9">
+          <div style="width:22px;height:22px;border-radius:50%;background:${i===0?'#F97316':'#E2E8F0'};display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:${i===0?'#fff':'#64748B'}">${i+1}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.8rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.company_name}</div>
+            <div style="height:3px;background:#F1F5F9;border-radius:2px;margin-top:3px">
+              <div style="height:100%;background:#F97316;border-radius:2px;width:${(parseFloat(c.spent)/maxS*100).toFixed(0)}%"></div>
+            </div>
+          </div>
+          <div style="font-size:.82rem;font-weight:600;color:#F97316;white-space:nowrap">${fmt(c.spent)}</div>
+        </div>`).join('');
+      document.getElementById('topCustEl').innerHTML=rows;
+    }
+
+    // Activity
+    const acts=d.recentActivity;
+    document.getElementById('activityEl').innerHTML=acts.map(a=>`
+      <div class="activity-item">
+        <div class="act-icon">⚡</div>
+        <div><div class="act-text">${a.action}</div><div class="act-time">${timeAgo(a.created_at)}</div></div>
+      </div>`).join('');
+
+    // Recent orders
+    document.getElementById('recentOrdersEl').innerHTML=d.recentOrders.map(o=>`
+      <tr>
+        <td class="font-mono" style="color:#F97316">#${o.id}</td>
+        <td style="font-weight:500">${o.customer_name||'—'}</td>
+        <td style="font-weight:600">${fmt(o.total_amount)}</td>
+        <td><span class="badge ${o.status}">${o.status}</span></td>
+        <td class="text-muted">${new Date(o.created_at).toLocaleDateString('uz-UZ')}</td>
+      </tr>`).join('');
+
+  }catch(e){console.error(e);}
+}
+load();
+</script>
+</body>
+</html>

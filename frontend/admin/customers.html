@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DRAPE CRM — Mijozlar</title>
+  <link rel="stylesheet" href="main.css"/>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">D</div>
+      <div class="brand-text">DRAPE<span>Wholesale CRM</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">ASOSIY</div>
+      <a href="dashboard.html" class="nav-item"><span class="ni">📊</span>Dashboard</a>
+      <a href="orders.html"    class="nav-item"><span class="ni">📋</span>Buyurtmalar</a>
+      <a href="customers.html" class="nav-item active"><span class="ni">👥</span>Mijozlar</a>
+      <a href="products.html"  class="nav-item"><span class="ni">📦</span>Mahsulotlar</a>
+      <a href="reports.html"   class="nav-item"><span class="ni">📈</span>Hisobotlar</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="avatar" id="avatarLetter">A</div>
+      <div><div class="avatar-name" id="avatarName">Admin</div><div class="avatar-role">Administrator</div></div>
+      <button onclick="logout()" style="margin-left:auto;background:none;border:none;color:#64748B;cursor:pointer;font-size:1rem">→</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div><div class="page-title">Mijozlar</div><div class="page-sub" id="countSub">Yuklanmoqda...</div></div>
+      <div class="topbar-right">
+        <div class="search-bar"><span>🔍</span><input id="searchInput" placeholder="Kompaniya nomi, telefon..."/></div>
+        <select id="filterType" class="form-select" style="max-width:160px">
+          <option value="">Barcha turlar</option>
+          <option value="vip">VIP</option>
+          <option value="corporate">Korporativ</option>
+          <option value="retail">Chakana</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModal()">+ Yangi mijoz</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="customer-grid" id="custGrid"><div class="empty-state">Yuklanmoqda...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Yangi mijoz</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Kompaniya nomi *</label><input class="form-input" id="fName" placeholder="Style Market MChJ"/></div>
+      <div class="form-group"><label class="form-label">Aloqa shaxsi</label><input class="form-input" id="fContact" placeholder="Ism Familiya"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Telefon</label><input class="form-input" id="fPhone" placeholder="+998 90 123 45 67"/></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="fEmail" type="email" placeholder="info@company.uz"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Shahar</label><input class="form-input" id="fCity" placeholder="Toshkent"/></div>
+      <div class="form-group"><label class="form-label">Tur</label>
+        <select class="form-select" id="fType">
+          <option value="retail">Chakana</option>
+          <option value="corporate">Korporativ</option>
+          <option value="vip">VIP</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Holat</label>
+        <select class="form-select" id="fStatus">
+          <option value="active">Faol</option>
+          <option value="inactive">Nofaol</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Izoh</label><textarea class="form-textarea" id="fNotes" placeholder="Qo'shimcha ma'lumot..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Bekor qilish</button>
+      <button class="btn btn-primary" onclick="save()">Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const token=localStorage.getItem('drape_token');
+if(!token) window.location.href='/admin/login.html';
+const name=localStorage.getItem('drape_name')||'Admin';
+document.getElementById('avatarName').textContent=name;
+document.getElementById('avatarLetter').textContent=name[0].toUpperCase();
+function logout(){localStorage.clear();window.location.href='/admin/login.html';}
+
+let all=[], editId=null;
+const TYPE_LABELS={vip:'VIP',corporate:'Korporativ',retail:'Chakana'};
+const STATUS_LABELS={active:'Faol',inactive:'Nofaol'};
+function fmt(v){return '£'+parseFloat(v||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+
+async function load(){
+  const r=await fetch('/api/customers',{headers:{'Authorization':'Bearer '+token}});
+  all=await r.json();
+  render();
+}
+
+function render(){
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  const t=document.getElementById('filterType').value;
+  let list=all.filter(c=>{
+    if(q&&!c.company_name.toLowerCase().includes(q)&&!(c.phone||'').includes(q)) return false;
+    if(t&&c.type!==t) return false;
+    return true;
+  });
+  document.getElementById('countSub').textContent=list.length+' ta mijoz';
+  if(!list.length){document.getElementById('custGrid').innerHTML='<div class="empty-state">Mijoz topilmadi</div>';return;}
+  document.getElementById('custGrid').innerHTML=list.map(c=>`
+    <div class="customer-card">
+      <div class="cust-head">
+        <div>
+          <div class="cust-name">${c.company_name}</div>
+          <div class="cust-type">${TYPE_LABELS[c.type]||c.type}</div>
+        </div>
+        <span class="badge ${c.status}">${STATUS_LABELS[c.status]||c.status}</span>
+      </div>
+      <div class="cust-info">
+        ${c.phone?`<div class="cust-row">📞 <span>${c.phone}</span></div>`:''}
+        ${c.email?`<div class="cust-row">✉️ <span>${c.email}</span></div>`:''}
+        ${c.city?`<div class="cust-row">📍 <span>${c.city}</span></div>`:''}
+        ${c.contact_name?`<div class="cust-row">👤 <span>${c.contact_name}</span></div>`:''}
+      </div>
+      <div class="cust-foot">
+        <div class="cust-stat"><div class="text-muted" style="font-size:.68rem">Buyurtmalar</div><div class="cust-stat-val">${c.order_count} ta · ${fmt(c.total_spent)}</div></div>
+        <div class="cust-actions">
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="openEdit(${c.id})" title="Tahrirlash">✏️</button>
+          <button class="btn btn-danger btn-icon btn-sm" onclick="del(${c.id})" title="O'chirish">🗑️</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function openModal(){
+  editId=null;
+  document.getElementById('modalTitle').textContent='Yangi mijoz';
+  ['fName','fContact','fPhone','fEmail','fCity','fNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fType').value='retail';
+  document.getElementById('fStatus').value='active';
+  document.getElementById('modal').classList.add('open');
+}
+function openEdit(id){
+  const c=all.find(x=>x.id===id);if(!c)return;
+  editId=id;
+  document.getElementById('modalTitle').textContent='Mijozni tahrirlash';
+  document.getElementById('fName').value=c.company_name||'';
+  document.getElementById('fContact').value=c.contact_name||'';
+  document.getElementById('fPhone').value=c.phone||'';
+  document.getElementById('fEmail').value=c.email||'';
+  document.getElementById('fCity').value=c.city||'';
+  document.getElementById('fType').value=c.type||'retail';
+  document.getElementById('fStatus').value=c.status||'active';
+  document.getElementById('fNotes').value=c.notes||'';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+
+async function save(){
+  const body={
+    company_name:document.getElementById('fName').value.trim(),
+    contact_name:document.getElementById('fContact').value.trim(),
+    phone:document.getElementById('fPhone').value.trim(),
+    email:document.getElementById('fEmail').value.trim(),
+    city:document.getElementById('fCity').value.trim(),
+    type:document.getElementById('fType').value,
+    status:document.getElementById('fStatus').value,
+    notes:document.getElementById('fNotes').value.trim()
+  };
+  if(!body.company_name){alert('Kompaniya nomini kiriting');return;}
+  const url=editId?`/api/customers/${editId}`:'/api/customers';
+  const method=editId?'PUT':'POST';
+  const r=await fetch(url,{method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+  if(r.ok){closeModal();load();}
+}
+
+async function del(id){
+  if(!confirm('Mijozni o\'chirishni tasdiqlaysizmi?')) return;
+  await fetch(`/api/customers/${id}`,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+  load();
+}
+
+document.getElementById('searchInput').addEventListener('input',render);
+document.getElementById('filterType').addEventListener('change',render);
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
+load();
+</script>
+</body>
+</html>

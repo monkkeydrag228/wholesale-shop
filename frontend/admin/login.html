@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DRAPE CRM — Kirish</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0F172A 0%,#1E293B 50%,#0F172A 100%);}
+    .login-box{width:100%;max-width:400px;padding:1rem}
+    .login-logo{text-align:center;margin-bottom:2rem}
+    .logo-icon{width:56px;height:56px;background:#F97316;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:700;color:#fff;margin-bottom:.75rem}
+    .logo-name{font-size:1.5rem;font-weight:700;color:#fff;letter-spacing:.15em}
+    .logo-sub{font-size:.75rem;color:#64748B;letter-spacing:.12em;text-transform:uppercase;margin-top:.2rem}
+    .login-card{background:#1E293B;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:2rem}
+    .login-title{font-size:1.1rem;font-weight:600;color:#fff;margin-bottom:.4rem}
+    .login-desc{font-size:.8rem;color:#64748B;margin-bottom:1.5rem}
+    .fg{display:flex;flex-direction:column;gap:.4rem;margin-bottom:1.1rem}
+    label{font-size:.75rem;font-weight:500;color:#94A3B8}
+    input{background:#0F172A;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:.65rem .9rem;color:#fff;font-family:'Inter',sans-serif;font-size:.88rem;outline:none;transition:border-color .2s;width:100%}
+    input:focus{border-color:#F97316}
+    input::placeholder{color:#475569}
+    .btn{width:100%;background:#F97316;color:#fff;border:none;padding:.75rem;border-radius:8px;font-family:'Inter',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:background .2s;margin-top:.5rem}
+    .btn:hover{background:#EA580C}
+    .btn:disabled{background:#374151;cursor:not-allowed}
+    .error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#EF4444;padding:.6rem .9rem;border-radius:8px;font-size:.8rem;margin-top:.8rem;display:none}
+    .error.show{display:block}
+    .hint{text-align:center;margin-top:1rem;font-size:.72rem;color:#475569}
+  </style>
+</head>
+<body>
+<div class="login-box">
+  <div class="login-logo">
+    <div class="logo-icon">D</div>
+    <div class="logo-name">DRAPE</div>
+    <div class="logo-sub">Wholesale CRM</div>
+  </div>
+  <div class="login-card">
+    <div class="login-title">Tizimga kirish</div>
+    <div class="login-desc">CRM boshqaruv paneliga kirish uchun ma'lumotlarni kiriting</div>
+    <div class="fg">
+      <label>Email manzil</label>
+      <input type="email" id="email" placeholder="admin@example.com"/>
+    </div>
+    <div class="fg">
+      <label>Parol</label>
+      <input type="password" id="pass" placeholder="••••••••"/>
+    </div>
+    <button class="btn" id="loginBtn">Kirish</button>
+    <div class="error" id="err"></div>
+    <div class="hint">admin777@gmail.com / bishbash</div>
+  </div>
+</div>
+<script>
+if(localStorage.getItem('drape_token')) window.location.href='/admin/dashboard.html';
+const emailEl=document.getElementById('email'),passEl=document.getElementById('pass');
+const btn=document.getElementById('loginBtn'),errEl=document.getElementById('err');
+async function login(){
+  const email=emailEl.value.trim(),password=passEl.value;
+  if(!email||!password){show('Email va parolni kiriting');return;}
+  btn.disabled=true;btn.textContent='Kirish...';errEl.classList.remove('show');
+  try{
+    const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const d=await r.json();
+    if(!r.ok){show(d.error||'Noto\'g\'ri ma\'lumotlar');return;}
+    localStorage.setItem('drape_token',d.token);
+    localStorage.setItem('drape_name',d.name||'Admin');
+    window.location.href='/admin/dashboard.html';
+  }catch{show('Server bilan bog\'lanib bo\'lmadi');}
+  finally{btn.disabled=false;btn.textContent='Kirish';}
+}
+function show(m){errEl.textContent=m;errEl.classList.add('show');}
+btn.addEventListener('click',login);
+document.addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+</script>
+</body>
+</html>
