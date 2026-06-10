@@ -78,8 +78,8 @@ CREATE INDEX IF NOT EXISTS idx_order_items_order  ON order_items(order_id);
 
 -- ── Seed data ────────────────────────────────────────────────
 INSERT INTO users (name, email, password, role) VALUES
-    ('Admin User',  'admin@wholesale.com', '$2b$10$examplehashedpassword1', 'admin'),
-    ('Jane Smith',  'jane@example.com',    '$2b$10$examplehashedpassword2', 'customer')
+    ('Admin User',  'admin@wholesale.com', '$2a$10$1Nniku7NqHRGqCBmKuUk.Osy2I5VoB7.npz8nfqkZRfCXWup8XFTW', 'admin'),
+    ('Jane Smith',  'jane@example.com',    '$2a$10$1Nniku7NqHRGqCBmKuUk.Osy2I5VoB7.npz8nfqkZRfCXWup8XFTW', 'customer')
 ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO products (name, category, description, price, stock, image_url) VALUES
