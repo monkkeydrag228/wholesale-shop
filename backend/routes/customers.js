@@ -8,11 +8,9 @@ router.get('/', async (req, res) => {
   try {
     const { rows } = await db.query(`
       SELECT c.*,
-        COUNT(o.id)               AS order_count,
-        COALESCE(SUM(o.total_amount),0) AS total_spent
+        COALESCE((SELECT COUNT(*) FROM orders o WHERE o.customer_name = c.company_name), 0) AS order_count,
+        COALESCE((SELECT SUM(total_amount) FROM orders o WHERE o.customer_name = c.company_name), 0) AS total_spent
       FROM customers c
-      LEFT JOIN orders o ON o.customer_id = c.id
-      GROUP BY c.id
       ORDER BY c.created_at DESC
     `);
     res.json(rows);

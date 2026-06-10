@@ -23,9 +23,9 @@ router.get('/summary', async (req, res) => {
         WHERE created_at >= NOW()-INTERVAL'6 months'
         GROUP BY DATE_TRUNC('month',created_at)
         ORDER BY month_date ASC`),
-      db.query(`SELECT c.company_name, COUNT(o.id) AS orders, COALESCE(SUM(o.total_amount),0) AS spent
-        FROM customers c LEFT JOIN orders o ON o.customer_id=c.id
-        GROUP BY c.id,c.company_name ORDER BY spent DESC LIMIT 5`),
+      db.query(`SELECT customer_name AS company_name, COUNT(id) AS orders, COALESCE(SUM(total_amount),0) AS spent
+        FROM orders WHERE customer_name IS NOT NULL
+        GROUP BY customer_name ORDER BY spent DESC LIMIT 5`),
       db.query(`SELECT o.id,o.customer_name,o.status,o.total_amount,o.created_at
         FROM orders o ORDER BY o.created_at DESC LIMIT 5`),
       db.query(`SELECT * FROM activity_log ORDER BY created_at DESC LIMIT 8`)

@@ -1,163 +1,120 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uz">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DRAPE — Orders</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="admin.css" />
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DRAPE CRM — Buyurtmalar</title>
+  <link rel="stylesheet" href="main.css"/>
 </head>
 <body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">D</div>
+      <div class="brand-text">DRAPE<span>Wholesale CRM</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">ASOSIY</div>
+      <a href="dashboard.html" class="nav-item"><span class="ni">📊</span>Dashboard</a>
+      <a href="orders.html"    class="nav-item active"><span class="ni">📋</span>Buyurtmalar</a>
+      <a href="customers.html" class="nav-item"><span class="ni">👥</span>Mijozlar</a>
+      <a href="products.html"  class="nav-item"><span class="ni">📦</span>Mahsulotlar</a>
+      <a href="reports.html"   class="nav-item"><span class="ni">📈</span>Hisobotlar</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="avatar" id="avatarLetter">A</div>
+      <div><div class="avatar-name" id="avatarName">Admin</div><div class="avatar-role">Administrator</div></div>
+      <button onclick="logout()" style="margin-left:auto;background:none;border:none;color:#64748B;cursor:pointer;font-size:1rem">→</button>
+    </div>
+  </aside>
 
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="sidebar-logo">DRAPE</div>
-      <nav class="sidebar-nav">
-        <a href="/admin" class="nav-link">📦 Products</a>
-        <a href="/admin/orders.html" class="nav-link active">🧾 Orders</a>
-        <a href="/" class="nav-link">🏪 View Shop</a>
-      </nav>
-      <div class="sidebar-foot">Admin Panel v1.0</div>
-    </aside>
-
-    <main class="main">
-      <div class="page-header">
-        <div>
-          <h1>Orders</h1>
-          <p class="subtitle">All customer wholesale orders</p>
-        </div>
-        <span id="tableCount" class="count-badge">Loading…</span>
+  <div class="main">
+    <div class="topbar">
+      <div><div class="page-title">Buyurtmalar</div><div class="page-sub" id="countSub">Yuklanmoqda...</div></div>
+      <div class="topbar-right">
+        <button class="btn btn-ghost btn-sm" onclick="loadOrders()">↻ Yangilash</button>
       </div>
-
-      <div class="toast" id="toast"></div>
-
-      <section class="table-card">
-        <div id="tableLoading" class="loading-row">Loading orders…</div>
-        <div id="tableError"   class="error-row" style="display:none">
-          No orders yet. Place an order from the <a href="/">shop</a> first.
-        </div>
-
+    </div>
+    <div class="content">
+      <div class="table-card">
         <div class="table-wrap">
-          <table id="ordersTable" style="display:none">
+          <table>
             <thead>
               <tr>
                 <th>#</th>
-                <th>Customer</th>
-                <th>Status</th>
-                <th>Total</th>
-                <th>Date</th>
-                <th>Actions</th>
+                <th>Mijoz</th>
+                <th>Summa</th>
+                <th>Holat</th>
+                <th>Sana</th>
+                <th>Amal</th>
               </tr>
             </thead>
-            <tbody id="tableBody"></tbody>
+            <tbody id="tableBody">
+              <tr><td colspan="6" class="empty-state">Yuklanmoqda...</td></tr>
+            </tbody>
           </table>
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
   </div>
+</div>
 
-  <script>
-    'use strict';
+<script>
+const token=localStorage.getItem('drape_token');
+if(!token) window.location.href='/admin/login.html';
+const name=localStorage.getItem('drape_name')||'Admin';
+document.getElementById('avatarName').textContent=name;
+document.getElementById('avatarLetter').textContent=name[0].toUpperCase();
+function logout(){localStorage.clear();window.location.href='/admin/login.html';}
 
-    const tableBody    = document.getElementById('tableBody');
-    const tableEl      = document.getElementById('ordersTable');
-    const tableCount   = document.getElementById('tableCount');
-    const tableLoading = document.getElementById('tableLoading');
-    const tableError   = document.getElementById('tableError');
-    const toast        = document.getElementById('toast');
+const STATUS_COLORS={pending:'#F59E0B',processing:'#3B82F6',shipped:'#8B5CF6',delivered:'#10B981',cancelled:'#EF4444'};
+const STATUS_UZ={pending:'Kutilmoqda',processing:'Jarayonda',shipped:'Yuborildi',delivered:'Yetkazildi',cancelled:'Bekor qilindi'};
 
-    function showToast(msg, type = 'success') {
-      toast.textContent = msg;
-      toast.className   = `toast show ${type}`;
-      setTimeout(() => { toast.className = 'toast'; }, 3000);
-    }
+function fmt(v){return '£'+parseFloat(v||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
 
-    const STATUS_COLORS = {
-      pending:    '#C8963E',
-      processing: '#2980b9',
-      shipped:    '#8e44ad',
-      delivered:  '#27ae60',
-      cancelled:  '#c0392b',
-    };
+async function loadOrders(){
+  try{
+    const r=await fetch('/api/orders',{headers:{'Authorization':'Bearer '+token}});
+    if(r.status===401){window.location.href='/admin/login.html';return;}
+    const orders=await r.json();
 
-    async function loadOrders() {
-      try {
-        const res = await fetch('/api/orders');
-        if (!res.ok) throw new Error();
-        const orders = await res.json();
-
-        tableLoading.style.display = 'none';
-        tableCount.textContent     = `${orders.length} orders`;
-        tableBody.innerHTML        = '';   // ← очищаем перед рендером
-
-        if (!orders.length) {
-          tableError.style.display = 'block';
-          tableEl.style.display    = 'none';
-          return;
-        }
-
-        tableError.style.display = 'none';
-        orders.forEach(o => tableBody.appendChild(createRow(o)));
-        tableEl.style.display = 'table';
-      } catch {
-        tableLoading.style.display = 'none';
-        tableError.style.display   = 'block';
-      }
-    }
-
-    function createRow(o) {
-      const tr   = document.createElement('tr');
-      const date = new Date(o.created_at).toLocaleDateString('en-GB');
-      const color = STATUS_COLORS[o.status] || '#888';
-
-      tr.innerHTML = `
-        <td><strong>#${o.id}</strong></td>
+    document.getElementById('countSub').textContent=orders.length+' buyurtma';
+    document.getElementById('tableBody').innerHTML=orders.length?orders.map(o=>`
+      <tr>
+        <td class="font-mono" style="color:#F97316">#${o.id}</td>
+        <td style="font-weight:500">${o.customer_name||'—'}</td>
+        <td style="font-weight:600">${fmt(o.total_amount)}</td>
+        <td><span class="badge ${o.status}" style="background:${STATUS_COLORS[o.status]}22;color:${STATUS_COLORS[o.status]}">${STATUS_UZ[o.status]||o.status}</span></td>
+        <td class="text-muted">${new Date(o.created_at).toLocaleDateString('uz-UZ')}</td>
         <td>
-          <div style="font-weight:500">${o.customer_name || 'Guest'}</div>
-          <div style="font-size:.75rem;color:#888">${o.customer_phone || '—'}</div>
-        </td>
-        <td>
-          <span style="background:${color}22;color:${color};padding:.2rem .6rem;
-                border-radius:20px;font-size:.75rem;font-weight:500;text-transform:uppercase">
-            ${o.status}
-          </span>
-        </td>
-        <td><strong>£${parseFloat(o.total_amount).toFixed(2)}</strong></td>
-        <td>${date}</td>
-        <td class="actions-cell">
           <select class="btn-edit" data-id="${o.id}" style="padding:.3rem .5rem;font-size:.76rem;cursor:pointer">
-            <option value="">Change status…</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="">Holat o'zgartirish...</option>
+            <option value="pending">Kutilmoqda</option>
+            <option value="processing">Jarayonda</option>
+            <option value="shipped">Yuborildi</option>
+            <option value="delivered">Yetkazildi</option>
+            <option value="cancelled">Bekor qilindi</option>
           </select>
         </td>
-      `;
+      </tr>`).join(''):`<tr><td colspan="6" class="empty-state">Buyurtmalar yo'q</td></tr>`;
 
-      tr.querySelector('select').addEventListener('change', async (e) => {
-        const status = e.target.value;
-        if (!status) return;
-        try {
-          const res = await fetch(`/api/orders/${o.id}/status`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status })
+    document.querySelectorAll('.btn-edit').forEach(sel=>{
+      sel.addEventListener('change',async(e)=>{
+        const status=e.target.value;
+        if(!status) return;
+        try{
+          const res=await fetch(`/api/orders/${sel.dataset.id}/status`,{
+            method:'PATCH',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+            body:JSON.stringify({status})
           });
-          if (!res.ok) throw new Error();
-          showToast(`✅ Order #${o.id} → ${status}`);
+          if(!res.ok) throw new Error();
           loadOrders();
-        } catch {
-          showToast('❌ Could not update status', 'error');
-        }
+        }catch(err){console.error(err);}
       });
-
-      return tr;
-    }
-
-    loadOrders();
-  </script>
+    });
+  }catch(e){console.error(e);}
+}
+loadOrders();
+</script>
 </body>
 </html>
