@@ -9,7 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
@@ -17,9 +17,12 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 10m
           script: |
-            docker rm -f wholesale_db wholesale_app wholesale_nginx 2>/dev/null || true
-            cd ~/wholesale-shop 2>/dev/null || git clone https://github.com/monkkeydrag228/wholesale-shop.git ~/wholesale-shop && cd ~/wholesale-shop
+            cd /home/ubuntu/wholesale-shop || (git clone https://github.com/monkkeydrag228/wholesale-shop.git /home/ubuntu/wholesale-shop && cd /home/ubuntu/wholesale-shop)
             git pull origin main
-            docker compose down -v 2>/dev/null || true
+            docker compose down -v
             docker compose up -d --build
+            echo "✅ Deployment complete!"
