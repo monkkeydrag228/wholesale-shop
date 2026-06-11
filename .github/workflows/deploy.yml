@@ -44,6 +44,7 @@ jobs:
               git clone https://github.com/monkkeydrag228/wholesale-shop.git /home/ubuntu/wholesale-shop
             fi
             cd /home/ubuntu/wholesale-shop
+            git reset --hard HEAD
             git pull origin main
             echo ">>> Working dir: $(pwd)"
             echo ">>> dashboard.html brand: $(grep -o 'RETAKE\|DRAPE' frontend/admin/dashboard.html | head -1)"
