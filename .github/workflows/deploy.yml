@@ -40,8 +40,13 @@ jobs:
           timeout: 60s
           command_timeout: 10m
           script: |
-            cd /home/ubuntu/wholesale-shop || (git clone https://github.com/monkkeydrag228/wholesale-shop.git /home/ubuntu/wholesale-shop && cd /home/ubuntu/wholesale-shop)
+            if [ ! -d /home/ubuntu/wholesale-shop ]; then
+              git clone https://github.com/monkkeydrag228/wholesale-shop.git /home/ubuntu/wholesale-shop
+            fi
+            cd /home/ubuntu/wholesale-shop
             git pull origin main
+            echo ">>> Working dir: $(pwd)"
+            echo ">>> dashboard.html brand: $(grep -o 'RETAKE\|DRAPE' frontend/admin/dashboard.html | head -1)"
             docker compose down -v
             docker compose build --no-cache
             docker compose up -d
